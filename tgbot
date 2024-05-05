@@ -1,1 +1,52 @@
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
 
+TOKEN = 'tok'
+
+def start(update: Update, context: CallbackContext) -> None:
+    keyboard = [
+        [InlineKeyboardButton("7 класс", callback_data='7')],
+        [InlineKeyboardButton("8 класс", callback_data='8')],
+        [InlineKeyboardButton("9 класс", callback_data='9')],
+        [InlineKeyboardButton("10 класс", callback_data='10')],
+        [InlineKeyboardButton("11 класс", callback_data='11')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if update.callback_query:
+        update.callback_query.edit_message_text('Привет! Пожалуйста, выбери свой класс:', reply_markup=reply_markup)
+    else:
+        update.message.reply_text('Привет! Пожалуйста, выбери свой класс:', reply_markup=reply_markup)
+
+def button(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    data = query.data
+
+    if data.isdigit():
+        keyboard = [
+            [InlineKeyboardButton("Учебные материалы", callback_data=f'materials_{data}')],
+            [InlineKeyboardButton("Онлайн тесты", callback_data=f'tests_{data}')],
+            [InlineKeyboardButton("Эксперименты", callback_data=f'experiments_{data}')],
+            [InlineKeyboardButton("Виртуальная лаборатория", callback_data=f'lab_{data}')],
+            [InlineKeyboardButton("Назад", callback_data='back_to_class')],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text(text=f"Выберите действие для {data} класса:", reply_markup=reply_markup)
+    elif data == 'back_to_class':
+        start(update, context)
+    else:
+        query.edit_message_text(text=f"Действие: {data}")
+
+def main() -> None:
+    updater = Updater(TOKEN, use_context=True)
+    dispatcher = updater.dispatcher
+
+    dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CallbackQueryHandler(button))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
