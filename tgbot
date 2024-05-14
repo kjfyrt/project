@@ -1,52 +1,63 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
+   import logging
+   import requests
+   from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+   from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext
+   CHAT_GPT_API_KEY = 'your_chat_gpt_api_key'
 
-TOKEN = 'tok'
+   CHAT_GPT_URL = 'https://api.chatgpt.com/v1/message'
 
-def start(update: Update, context: CallbackContext) -> None:
-    keyboard = [
-        [InlineKeyboardButton("7 класс", callback_data='7')],
-        [InlineKeyboardButton("8 класс", callback_data='8')],
-        [InlineKeyboardButton("9 класс", callback_data='9')],
-        [InlineKeyboardButton("10 класс", callback_data='10')],
-        [InlineKeyboardButton("11 класс", callback_data='11')],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+   logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+   logger = logging.getLogger(__name__)
 
-    if update.callback_query:
-        update.callback_query.edit_message_text('Привет! Пожалуйста, выбери свой класс:', reply_markup=reply_markup)
-    else:
-        update.message.reply_text('Привет! Пожалуйста, выбери свой класс:', reply_markup=reply_markup)
+   
+   def query_chatgpt(prompt):
+       response = requests.post(
+           CHAT_GPT_URL,
+           headers={'Authorization': f'Bearer {CHAT_GPT_API_KEY}'},
+           json={'prompt': prompt, 'max_tokens': 150}
+       )
+       data = response.json()
+       return data['choices'][0]['message'] if 'choices' in data else "Ошибка обработки запроса"
 
-def button(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    query.answer()
-    data = query.data
+   def start(update: Update, context: CallbackContext) -> None:
+       keyboard = [
+           [InlineKeyboardButton("Математика", callback_data='math')],
+           [InlineKeyboardButton("Физика", callback_data='physics')],
+           [InlineKeyboardButton("Литература", callback_data='literature')],
+           [InlineKeyboardButton("История", callback_data='history')],
+           [InlineKeyboardButton("Назад", callback_data='back')]
+       ]
+       reply_markup = InlineKeyboardMarkup(keyboard)
+       update.message.reply_text('Выберите тему для изучения:', reply_markup=reply_markup)
 
-    if data.isdigit():
-        keyboard = [
-            [InlineKeyboardButton("Учебные материалы", callback_data=f'materials_{data}')],
-            [InlineKeyboardButton("Онлайн тесты", callback_data=f'tests_{data}')],
-            [InlineKeyboardButton("Эксперименты", callback_data=f'experiments_{data}')],
-            [InlineKeyboardButton("Виртуальная лаборатория", callback_data=f'lab_{data}')],
-            [InlineKeyboardButton("Назад", callback_data='back_to_class')],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(text=f"Выберите действие для {data} класса:", reply_markup=reply_markup)
-    elif data == 'back_to_class':
-        start(update, context)
-    else:
-        query.edit_message_text(text=f"Действие: {data}")
+   
+   def button(update: Update, context: CallbackContext) -> None:
+       query = update.callback_query
+       query.answer()
+       if query.data == 'back':
+           start(update, context)
+       else:
+           response = query_chatgpt(f"Учебные материалы по {query.data}")
+           query.edit_message_text(text=response)
 
-def main() -> None:
-    updater = Updater(TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+   
+   def error(update: Update, context: CallbackContext) -> None:
+       logger.warning('Update "%s" caused error "%s"', update, context.error)
 
-    dispatcher.add_handler(CommandHandler('start', start))
-    dispatcher.add_handler(CallbackQueryHandler(button))
+   def main():
+       
+       updater = Updater("YOUR_TELEGRAM_BOT_TOKEN")
 
-    updater.start_polling()
-    updater.idle()
+       
+       dp = updater.dispatcher
 
-if __name__ == '__main__':
-    main()
+       dp.add_handler(CommandHandler('start', start))
+       dp.add_handler(CallbackQueryHandler(button))
+       dp.add_error_handler(error)
+
+    
+       updater.start_polling()
+       updater.idle()
+
+   if __name__ == '__main__':
+       main()
